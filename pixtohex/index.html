@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixelForge Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <header id="topbar">
+    <a href="../index.html" id="logo" title="Ana Menüye Dön">
+      <div class="logo-mark">BS</div>
+      <div class="logo-text-wrap">
+        <span class="logo-brand">BitPix<strong>Hex</strong></span>
+        <span class="logo-back">← Ana Menü</span>
+      </div>
+    </a>
+
+    <nav id="menubar">
+      <div class="menu-item" data-menu="file">
+        <span>Dosya</span>
+        <div class="dropdown">
+          <button data-action="new">Yeni Tuval <kbd>Ctrl+N</kbd></button>
+          <button data-action="load-png">PNG / BMP Yükle</button>
+          <div class="sep"></div>
+          <button data-action="save-png">PNG Kaydet <kbd>Ctrl+S</kbd></button>
+          <button data-action="save-bmp">BMP Kaydet</button>
+          <div class="sep"></div>
+          <button data-action="full-reset">Sıfırla</button>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="edit">
+        <span>Düzenle</span>
+        <div class="dropdown">
+          <button data-action="undo">Geri Al <kbd>Ctrl+Z</kbd></button>
+          <button data-action="redo">Yinele <kbd>Ctrl+Y</kbd></button>
+          <div class="sep"></div>
+          <button data-action="copy">Kopyala <kbd>Ctrl+C</kbd></button>
+          <button data-action="cut">Kes <kbd>Ctrl+X</kbd></button>
+          <button data-action="paste">Yapıştır <kbd>Ctrl+V</kbd></button>
+          <div class="sep"></div>
+          <button data-action="clear">Tuvali Temizle <kbd>Del</kbd></button>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="image">
+        <span>Görüntü</span>
+        <div class="dropdown">
+          <button data-action="flip-h">Yatay Aynala</button>
+          <button data-action="flip-v">Dikey Aynala</button>
+          <button data-action="invert">Renkleri Ters Çevir <kbd>I</kbd></button>
+          <div class="sep"></div>
+          <button data-action="rotate-cw">90° Saat Yönü</button>
+          <button data-action="rotate-180">180° Döndür</button>
+          <button data-action="rotate-ccw">90° Saat Yönü Tersi</button>
+          <div class="sep"></div>
+          <button data-action="shift-up">Yukarı Kaydır</button>
+          <button data-action="shift-down">Aşağı Kaydır</button>
+          <button data-action="shift-left">Sola Kaydır</button>
+          <button data-action="shift-right">Sağa Kaydır</button>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="layer">
+        <span>Katman</span>
+        <div class="dropdown">
+          <button data-action="layer-add">Yeni Katman <kbd>Shift+N</kbd></button>
+          <button data-action="layer-dup">Katmanı Çoğalt</button>
+          <button data-action="layer-del">Katmanı Sil</button>
+          <div class="sep"></div>
+          <button data-action="layer-merge-down">Aşağıyla Birleştir</button>
+          <button data-action="layer-merge-all">Tüm Katmanları Birleştir</button>
+          <div class="sep"></div>
+          <button data-action="layer-up">Katmanı Yukarı Taşı</button>
+          <button data-action="layer-down">Katmanı Aşağı Taşı</button>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="view">
+        <span>Görünüm</span>
+        <div class="dropdown">
+          <button data-action="toggle-grid">Grid Göster/Gizle <kbd>G</kbd></button>
+          <button data-action="zoom-fit">Ekrana Sığdır <kbd>F</kbd></button>
+          <button data-action="zoom-reset">Gerçek Boyut <kbd>0</kbd></button>
+          <div class="sep"></div>
+          <button data-action="toggle-left-panel">Sol Paneli Gizle/Göster</button>
+          <button data-action="toggle-right-panel">Sağ Paneli Gizle/Göster</button>
+        </div>
+      </div>
+    </nav>
+
+    <div id="topbar-right">
+      <div id="tb-info">
+        <span id="size-label" class="chip">16×16</span>
+        <span id="zoom-chip" class="chip accent-chip">100%</span>
+      </div>
+      <div id="zoom-ctrl">
+        <button id="zoom-out-btn" title="Uzaklaştır [−]">−</button>
+        <button id="zoom-fit-btn" title="Ekrana Sığdır [F]">⊡</button>
+        <button id="zoom-in-btn" title="Yakınlaştır [+]">+</button>
+      </div>
+      <div id="undo-redo-ctrl">
+        <button id="undo-btn" disabled title="Geri Al [Ctrl+Z]">↩</button>
+        <button id="redo-btn" disabled title="Yinele [Ctrl+Y]">↪</button>
+      </div>
+      <span id="coord-display">—</span>
+    </div>
+  </header>
+
+  <div id="workspace">
+
+    <aside id="left-panel">
+      <div class="panel-scroll">
+
+        <div class="panel-group" id="pg-tools">
+          <div class="pg-header" data-group="pg-tools">
+            <span class="pg-title">ARAÇLAR</span>
+            <span class="pg-chevron">▾</span>
+          </div>
+          <div class="pg-body">
+            <div id="toolbox">
+              <button class="tool-btn active" data-tool="pencil" title="Kalem [P]">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M12.2 2.8a1 1 0 011.4 1.4L4.8 13.1l-2 .5.5-2 8.9-8.8z"/></svg>
+                <span>Kalem</span><kbd>P</kbd>
+              </button>
+              <button class="tool-btn" data-tool="fill" title="Doldur [B]">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 13s0-3.5 4-7.5l3-3 4 4-3 3c-4 4-8 3.5-8 3.5z"/><circle cx="12.5" cy="12.5" r="1.5"/></svg>
+                <span>Doldur</span><kbd>B</kbd>
+              </button>
+              <button class="tool-btn" data-tool="line" title="Çizgi [L]">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="14" x2="14" y2="2"/></svg>
+                <span>Çizgi</span><kbd>L</kbd>
+              </button>
+              <button class="tool-btn" data-tool="rect-outline" title="Çerçeve [R]">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12"/></svg>
+                <span>Çerçeve</span><kbd>R</kbd>
+              </button>
+              <button class="tool-btn" data-tool="rect-fill" title="Dolu Kare [⇧R]">
+                <svg viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="2" width="12" height="12"/></svg>
+                <span>Dolu Kare</span><kbd>⇧R</kbd>
+              </button>
+              <button class="tool-btn" data-tool="ellipse" title="Elips [O]">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="8" cy="8" rx="6" ry="4"/></svg>
+                <span>Elips</span><kbd>O</kbd>
+              </button>
+              <button class="tool-btn" data-tool="eyedropper" title="Damlalık [K]">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11 2l3 3-6 6-1.5-.5-.5-1.5 5-7z"/><path d="M4 11l1 3H3l1-3z"/></svg>
+                <span>Damlalık</span><kbd>K</kbd>
+              </button>
+              <button class="tool-btn" data-tool="select" title="Seçim [S]">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2,1"><rect x="2" y="2" width="12" height="12"/></svg>
+                <span>Seçim</span><kbd>S</kbd>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-group" id="pg-color">
+          <div class="pg-header" data-group="pg-color">
+            <span class="pg-title">RENK</span>
+            <span class="pg-chevron">▾</span>
+          </div>
+          <div class="pg-body">
+            <div id="color-area">
+              <div id="color-swatches">
+                <div id="swatch-bg" class="swatch" title="Arka plan rengi (sağ tık ile çiz)">
+                  <span class="swatch-label">Arkaplan</span>
+                </div>
+                <div id="swap-colors-btn" title="Renkleri Değiştir [X]">⇄</div>
+                <div id="swatch-fg" class="swatch active" title="Ön plan rengi (sol tık ile çiz)">
+                  <span class="swatch-label">Önplan</span>
+                </div>
+              </div>
+              <div id="color-btns">
+                <button class="color-select-btn" data-color="black" title="Siyah Seç">Siyah</button>
+                <button class="color-select-btn" data-color="white" title="Beyaz Seç">Beyaz</button>
+              </div>
+              <div id="color-hint">[X] Değiştir &nbsp;|&nbsp; Sağ tık = arkaplan</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-group" id="pg-brush">
+          <div class="pg-header" data-group="pg-brush">
+            <span class="pg-title">FIRÇA</span>
+            <span class="pg-chevron">▾</span>
+          </div>
+          <div class="pg-body">
+            <div class="slider-row">
+              <label>Boyut</label>
+              <input type="range" id="brush-size" min="1" max="32" value="1">
+              <span id="brush-size-val">1</span>
+            </div>
+            <div id="brush-shapes">
+              <button class="shape-btn active" data-shape="square" title="Kare fırça">■</button>
+              <button class="shape-btn" data-shape="circle" title="Daire fırça">●</button>
+              <button class="shape-btn" data-shape="h-line" title="Yatay çizgi">—</button>
+              <button class="shape-btn" data-shape="v-line" title="Dikey çizgi">|</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-group" id="pg-canvas">
+          <div class="pg-header" data-group="pg-canvas">
+            <span class="pg-title">TUVAL BOYUTU</span>
+            <span class="pg-chevron">▾</span>
+          </div>
+          <div class="pg-body">
+            <div class="preset-grid">
+              <button class="preset-btn" data-w="8" data-h="8">8×8</button>
+              <button class="preset-btn" data-w="16" data-h="16">16×16</button>
+              <button class="preset-btn" data-w="24" data-h="24">24×24</button>
+              <button class="preset-btn" data-w="32" data-h="32">32×32</button>
+              <button class="preset-btn" data-w="64" data-h="64">64×64</button>
+              <button class="preset-btn" data-w="128" data-h="64">128×64</button>
+              <button class="preset-btn" data-w="128" data-h="128">128×128</button>
+              <button class="preset-btn" data-w="256" data-h="64">256×64</button>
+            </div>
+            <div class="size-custom-row">
+              <input type="number" id="canvas-w" value="16" min="1" max="512" title="Genişlik">
+              <span>×</span>
+              <input type="number" id="canvas-h" value="16" min="1" max="512" title="Yükseklik">
+              <label class="check-compact"><input type="checkbox" id="keep-content"> İçeriği koru</label>
+            </div>
+            <button class="full-btn" id="apply-size">Uygula</button>
+          </div>
+        </div>
+
+        <div class="panel-group" id="pg-transform">
+          <div class="pg-header" data-group="pg-transform">
+            <span class="pg-title">DÖNÜŞÜM</span>
+            <span class="pg-chevron">▾</span>
+          </div>
+          <div class="pg-body">
+            <div class="tr-label">Yansıma</div>
+            <div class="btn-grid-2">
+              <button class="tr-btn" data-action="flip-h">↔ Yatay</button>
+              <button class="tr-btn" data-action="flip-v">↕ Dikey</button>
+            </div>
+            <div class="tr-label">Döndür</div>
+            <div class="btn-grid-3">
+              <button class="tr-btn" data-action="rotate-ccw">↺ 90°</button>
+              <button class="tr-btn" data-action="rotate-180">⇄ 180°</button>
+              <button class="tr-btn" data-action="rotate-cw">↻ 90°</button>
+            </div>
+            <div class="tr-label">Kaydır</div>
+            <div class="shift-grid">
+              <div></div>
+              <button class="tr-btn" data-action="shift-up">↑</button>
+              <div></div>
+              <button class="tr-btn" data-action="shift-left">←</button>
+              <button class="tr-btn" data-action="invert">⊘</button>
+              <button class="tr-btn" data-action="shift-right">→</button>
+              <div></div>
+              <button class="tr-btn" data-action="shift-down">↓</button>
+              <div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-group" id="pg-shortcuts">
+          <div class="pg-header" data-group="pg-shortcuts">
+            <span class="pg-title">KISAYOLLAR</span>
+            <span class="pg-chevron">▾</span>
+          </div>
+          <div class="pg-body collapsed-by-default" id="pg-shortcuts-body">
+            <div class="shortcut-group">
+              <div class="sc-cat">Araçlar</div>
+              <div class="sc-row"><kbd>P</kbd><span>Kalem</span></div>
+              <div class="sc-row"><kbd>B</kbd><span>Doldur</span></div>
+              <div class="sc-row"><kbd>L</kbd><span>Çizgi</span></div>
+              <div class="sc-row"><kbd>R</kbd><span>Çerçeve</span></div>
+              <div class="sc-row"><kbd>⇧R</kbd><span>Dolu kare</span></div>
+              <div class="sc-row"><kbd>O</kbd><span>Elips</span></div>
+              <div class="sc-row"><kbd>K</kbd><span>Damlalık</span></div>
+              <div class="sc-row"><kbd>S</kbd><span>Seçim</span></div>
+            </div>
+            <div class="shortcut-group">
+              <div class="sc-cat">Görünüm</div>
+              <div class="sc-row"><kbd>G</kbd><span>Grid göster/gizle</span></div>
+              <div class="sc-row"><kbd>F</kbd><span>Ekrana sığdır</span></div>
+              <div class="sc-row"><kbd>0</kbd><span>Gerçek boyut</span></div>
+              <div class="sc-row"><kbd>+/−</kbd><span>Yakın/uzaklaştır</span></div>
+              <div class="sc-row"><kbd>Boşluk+Sürükle</kbd><span>Pan</span></div>
+              <div class="sc-row"><kbd>Orta Tık</kbd><span>Pan</span></div>
+              <div class="sc-row"><kbd>Kaydır</kbd><span>Zoom</span></div>
+            </div>
+            <div class="shortcut-group">
+              <div class="sc-cat">Düzenle</div>
+              <div class="sc-row"><kbd>Ctrl+Z</kbd><span>Geri al</span></div>
+              <div class="sc-row"><kbd>Ctrl+Y</kbd><span>Yinele</span></div>
+              <div class="sc-row"><kbd>Ctrl+C</kbd><span>Kopyala</span></div>
+              <div class="sc-row"><kbd>Ctrl+X</kbd><span>Kes</span></div>
+              <div class="sc-row"><kbd>Ctrl+V</kbd><span>Yapıştır</span></div>
+              <div class="sc-row"><kbd>X</kbd><span>Renkleri değiştir</span></div>
+              <div class="sc-row"><kbd>Del</kbd><span>Tuvali temizle</span></div>
+              <div class="sc-row"><kbd>Esc</kbd><span>Seçimi iptal et</span></div>
+            </div>
+            <div class="shortcut-group">
+              <div class="sc-cat">Katman</div>
+              <div class="sc-row"><kbd>⇧N</kbd><span>Yeni katman</span></div>
+              <div class="sc-row"><kbd>⇧↑</kbd><span>Katmanı yukarı</span></div>
+              <div class="sc-row"><kbd>⇧↓</kbd><span>Katmanı aşağı</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <div id="canvas-area">
+      <div id="canvas-container">
+        <canvas id="main-canvas"></canvas>
+        <canvas id="overlay-canvas"></canvas>
+        <canvas id="select-canvas"></canvas>
+      </div>
+      <div id="drop-hint">Resim sürükleyin veya yapıştırın</div>
+    </div>
+
+    <aside id="right-panel">
+      <div class="panel-scroll">
+
+        <div class="panel-group" id="pg-layers">
+          <div class="pg-header" data-group="pg-layers">
+            <span class="pg-title">KATMANLAR</span>
+            <div class="pg-header-actions">
+              <button class="hdr-btn" data-action="layer-add" title="Yeni katman [⇧N]">+</button>
+              <button class="hdr-btn" data-action="layer-dup" title="Çoğalt">⎘</button>
+              <button class="hdr-btn danger" data-action="layer-del" title="Sil">✕</button>
+            </div>
+            <span class="pg-chevron">▾</span>
+          </div>
+          <div class="pg-body" id="layer-list-wrap">
+            <div id="layer-list"></div>
+            <div class="layer-footer">
+              <button class="sm-btn" data-action="layer-merge-down">Aşağıyla birleştir</button>
+              <button class="sm-btn" data-action="layer-merge-all">Tümünü birleştir</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-group" id="pg-preview">
+          <div class="pg-header" data-group="pg-preview">
+            <span class="pg-title">ÖN İZLEME</span>
+            <span class="pg-chevron">▾</span>
+          </div>
+          <div class="pg-body">
+            <div id="preview-wrap">
+              <canvas id="preview-canvas"></canvas>
+            </div>
+            <div class="radio-row">
+              <label><input type="radio" name="prev-bg" value="black" checked> Siyah</label>
+              <label><input type="radio" name="prev-bg" value="white"> Beyaz</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-group" id="pg-history">
+          <div class="pg-header" data-group="pg-history">
+            <span class="pg-title">GEÇMİŞ</span>
+            <span class="pg-chevron">▾</span>
+          </div>
+          <div class="pg-body">
+            <div id="history-list"></div>
+          </div>
+        </div>
+
+        <div class="panel-group" id="pg-hex">
+          <div class="pg-header" data-group="pg-hex">
+            <span class="pg-title">HEX ÇIKTI</span>
+            <span class="pg-chevron">▾</span>
+          </div>
+          <div class="pg-body">
+            <div class="hex-opts">
+              <div class="field-label">Format</div>
+              <select id="hex-format">
+                <option value="c-array">C Array</option>
+                <option value="arduino">Arduino PROGMEM</option>
+                <option value="plain">Plain Hex</option>
+                <option value="py-int">Python (int)</option>
+                <option value="py-hex">Python (hex)</option>
+                <option value="binary">Binary</option>
+              </select>
+              <div class="field-label" style="margin-top:6px">Okuma Yönü</div>
+              <select id="read-mode">
+                <option value="h-msb">Yatay — MSB</option>
+                <option value="h-lsb">Yatay — LSB</option>
+                <option value="v-msb">Dikey — MSB</option>
+                <option value="v-lsb">Dikey — LSB</option>
+                <option value="page-h-msb" selected>Sayfa Yatay — MSB</option>
+                <option value="page-h-lsb">Sayfa Yatay — LSB</option>
+                <option value="page-v-msb">Sayfa Dikey — MSB</option>
+                <option value="page-v-lsb">Sayfa Dikey — LSB</option>
+              </select>
+              <div class="field-label" style="margin-top:6px">Dönüşüm</div>
+              <div class="check-grid">
+                <label class="checkbox-row"><input type="checkbox" id="out-flip-h"> Yatay Aynala</label>
+                <label class="checkbox-row"><input type="checkbox" id="out-flip-v"> Dikey Aynala</label>
+                <label class="checkbox-row"><input type="checkbox" id="out-invert"> Ters Çevir</label>
+              </div>
+              <div class="field-label" style="margin-top:6px">Döndürme</div>
+              <select id="out-rotation">
+                <option value="0">Yok</option>
+                <option value="90cw">90° Saat Yönü</option>
+                <option value="180">180°</option>
+                <option value="90ccw">90° Ters</option>
+              </select>
+              <div class="field-label" style="margin-top:6px">OLED Arka Plan</div>
+              <div class="radio-row">
+                <label><input type="radio" name="oled-bg" value="black" checked> Siyah</label>
+                <label><input type="radio" name="oled-bg" value="white"> Beyaz</label>
+              </div>
+            </div>
+            <div class="hex-actions">
+              <button class="sm-btn accent-btn" id="hex-copy">Kopyala</button>
+              <button class="sm-btn" id="hex-refresh">Yenile</button>
+              <button class="sm-btn" id="hex-apply">Uygula</button>
+            </div>
+            <div id="hex-editor-wrap">
+              <textarea id="hex-editor" spellcheck="false" autocomplete="off" placeholder="Hex çıktısı burada görünecek..."></textarea>
+            </div>
+            <div id="hex-footer">
+              <span id="hex-byte-count">0 byte</span>
+              <span id="hex-status"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-group" id="pg-store">
+          <div class="pg-header" data-group="pg-store">
+            <span class="pg-title">DEPOLAMA</span>
+            <div class="pg-header-actions">
+              <button class="hdr-btn accent-hdr" id="store-btn" title="Depola ve temizle">+</button>
+              <button class="hdr-btn" id="store-view-btn" title="Görüntüle">↗</button>
+            </div>
+            <span class="pg-chevron">▾</span>
+          </div>
+          <div class="pg-body">
+            <div id="store-count" class="store-meta">0 kayıt</div>
+            <div id="store-list"></div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+  </div>
+
+  <div id="statusbar">
+    <span id="status-tool">Kalem</span>
+    <div class="sb-sep"></div>
+    <span id="status-size">16×16</span>
+    <div class="sb-sep"></div>
+    <span id="status-zoom">100%</span>
+    <div class="sb-sep"></div>
+    <span id="status-pos">—</span>
+    <div class="sb-sep"></div>
+    <span id="status-layer">Katman 1</span>
+    <div class="sb-sep"></div>
+    <span id="status-bytes">—</span>
+    <span id="status-msg"></span>
+  </div>
+
+</div>
+
+<div id="modal-overlay" class="hidden">
+  <div id="modal-box">
+    <div id="modal-title"></div>
+    <div id="modal-body"></div>
+    <div id="modal-actions">
+      <button id="modal-cancel" class="modal-btn">İptal</button>
+      <button id="modal-ok" class="modal-btn accent-btn">Tamam</button>
+    </div>
+  </div>
+</div>
+
+<div id="store-modal" class="hidden">
+  <div id="store-modal-box">
+    <div id="store-modal-header">
+      <span>Depolanan Kodlar</span>
+      <button id="store-modal-close">✕</button>
+    </div>
+    <div id="store-modal-body"></div>
+    <div id="store-modal-footer">
+      <button class="modal-btn accent-btn" id="store-copy-all">Tümünü Kopyala</button>
+      <button class="modal-btn danger-btn" id="store-clear-all">Tümünü Sil</button>
+      <button class="modal-btn" id="store-modal-close2">Kapat</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept=".png,.bmp,.jpg,.jpeg" style="display:none">
+
+<script src="app.js"></script>
+</body>
+</html>
