@@ -427,6 +427,63 @@
           </div>
         </div>
 
+        <div class="panel-group" id="pg-import" style="">
+          <div class="pg-header" data-group="pg-import">
+            <span class="pg-title">BİTMAP İÇE AKTAR</span>
+            <span class="pg-chevron">▾</span>
+          </div>
+          <div class="pg-body" id="pg-import-body">
+
+            <div class="imp-row">
+              <div class="field-label">Genişlik (W)</div>
+              <div class="imp-size-row">
+                <input type="number" id="imp-w" value="128" min="1" max="512" class="imp-num">
+                <span class="imp-x">×</span>
+                <input type="number" id="imp-h" value="64" min="1" max="512" class="imp-num">
+                <span class="field-label" style="margin:0">Y</span>
+                <button class="sm-btn" id="imp-auto-size" title="Byte sayısından boyutu otomatik tahmin et">Otomatik</button>
+              </div>
+            </div>
+
+            <div class="field-label" style="margin-top:6px">Okuma Yönü</div>
+            <select id="imp-read-mode" class="imp-select">
+              <option value="h-msb">Yatay — MSB (SSD1306 standart)</option>
+              <option value="h-lsb">Yatay — LSB</option>
+              <option value="v-msb">Dikey — MSB</option>
+              <option value="v-lsb">Dikey — LSB</option>
+              <option value="page-h-msb" selected>Sayfa Yatay — MSB (Adafruit GFX)</option>
+              <option value="page-h-lsb">Sayfa Yatay — LSB</option>
+              <option value="page-v-msb">Sayfa Dikey — MSB</option>
+              <option value="page-v-lsb">Sayfa Dikey — LSB</option>
+            </select>
+
+            <div class="field-label" style="margin-top:6px">Ters Çevir</div>
+            <label class="checkbox-row"><input type="checkbox" id="imp-invert"> Bitleri ters çevir (beyaz/siyah)</label>
+
+            <div class="field-label" style="margin-top:8px">Hex / C Array Kodu</div>
+            <textarea id="imp-code" class="imp-textarea" spellcheck="false"
+              placeholder="Buraya yapıştır:&#10;• static const unsigned char PROGMEM logo[] = {...};&#10;• const uint8_t bmp[] = {0xFF, 0x00, ...};&#10;• 0xFF, 0xA0, 0x3C ...&#10;• FF A0 3C ..."></textarea>
+
+            <div id="imp-info" class="imp-info">—</div>
+
+            <div class="field-label" style="margin-top:8px">Canlı Önizleme</div>
+            <div id="imp-preview-wrap">
+              <canvas id="imp-preview-canvas"></canvas>
+            </div>
+
+            <div class="imp-actions">
+              <button class="sm-btn accent-btn" id="imp-try-all" title="Tüm okuma yönlerini dene ve en iyi görüneni göster">🔍 Tüm Yönleri Dene</button>
+              <button class="sm-btn accent-btn" id="imp-apply-btn">✔ Tuvale Uygula</button>
+            </div>
+
+            <div id="imp-tryall-wrap" class="imp-tryall-wrap hidden">
+              <div class="field-label">Tüm Okuma Yönleri Karşılaştırması</div>
+              <div id="imp-tryall-grid" class="imp-tryall-grid"></div>
+            </div>
+
+          </div>
+        </div>
+
         <div class="panel-group" id="pg-store">
           <div class="pg-header" data-group="pg-store">
             <span class="pg-title">DEPOLAMA</span>

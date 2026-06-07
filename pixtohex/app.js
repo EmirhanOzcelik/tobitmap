@@ -1515,4 +1515,308 @@ document.addEventListener('paste', function (e) {
 updateColorUI();
 initCanvas(16, 16, false);
 
+// Bitmap İçe Aktar modülünden gelen event
+document.addEventListener('bitmapImport', function(e) {
+  var d = e.detail;
+  S.W = d.w; S.H = d.h;
+  mainCanvas.width  = d.w; mainCanvas.height  = d.h;
+  overlayCanvas.width = d.w; overlayCanvas.height = d.h;
+  selectCanvas.width  = d.w; selectCanvas.height  = d.h;
+  syncCanvasSizeUI(); applyTransform();
+  // Tüm katmanları sıfırla, aktif katmana grid'i yaz
+  S.layers = [{ name: 'Katman 1', grid: d.grid, visible: true }];
+  S.activeLayerIdx = 0;
+  renderLayerList();
+  recordHistory();
+  redraw();
+  fitToScreen();
+  showStatus('Bitmap yüklendi: ' + d.w + '×' + d.h + ' ✓');
+});
+
+})();
+/* ════════════════════════════════════════════════
+   BİTMAP İÇE AKTAR — tam bağımsız modül
+   ════════════════════════════════════════════════ */
+(function () {
+
+  /* --- Yardımcılar --- */
+  function $i(id) { return document.getElementById(id); }
+
+  /* Hex kodundan byte dizisini çıkar — C Array, PROGMEM, plain hex, decimal hepsini destekler */
+  function extractBytes(raw) {
+    // 0x.. formatı (C/Arduino)
+    var m = raw.match(/0x[0-9a-fA-F]{1,2}/gi);
+    if (m && m.length > 4) return m.map(function(x){ return parseInt(x,16); });
+    // Plain hex: "FF A0 3C ..."
+    var plain = raw.replace(/[^0-9a-fA-F\s]/g,'').trim();
+    var tokens = plain.split(/\s+/).filter(function(t){ return t.length===2; });
+    if (tokens.length > 4) return tokens.map(function(t){ return parseInt(t,16); });
+    // Decimal array
+    var dm = raw.match(/\b([01]?\d{1,2}|2[0-4]\d|25[0-5])\b/g);
+    if (dm && dm.length > 4) {
+      var vals = dm.map(Number).filter(function(v){ return v>=0&&v<=255; });
+      if (vals.length > 4) return vals;
+    }
+    return null;
+  }
+
+  /* Byte dizisinden canvas ImageData üret — tüm okuma modlarını destekler */
+  function bytesToImageData(bytes, w, h, mode, invert) {
+    var msb = mode.indexOf('msb') !== -1;
+    var grid = [];
+    for (var r=0;r<h;r++){ grid.push(new Uint8Array(w)); }
+
+    if (mode==='h-msb' || mode==='h-lsb') {
+      var bpr = Math.ceil(w/8), bi=0;
+      for (var r=0;r<h;r++) for (var cbi=0;cbi<bpr;cbi++) {
+        if (bi>=bytes.length) break;
+        var b=bytes[bi++];
+        for (var bp=0;bp<8;bp++) {
+          var pc=cbi*8+bp;
+          if (pc<w) grid[r][pc] = msb ? (b>>(7-bp))&1 : (b>>bp)&1;
+        }
+      }
+    } else if (mode==='v-msb' || mode==='v-lsb') {
+      var bpc=Math.ceil(h/8), bi=0;
+      for (var c=0;c<w;c++) for (var cbi=0;cbi<bpc;cbi++) {
+        if (bi>=bytes.length) break;
+        var b=bytes[bi++];
+        for (var bp=0;bp<8;bp++) {
+          var pr=cbi*8+bp;
+          if (pr<h) grid[pr][c] = msb ? (b>>(7-bp))&1 : (b>>bp)&1;
+        }
+      }
+    } else if (mode==='page-h-msb' || mode==='page-h-lsb') {
+      var pages=Math.ceil(h/8), bi=0;
+      for (var pg=0;pg<pages;pg++) for (var c=0;c<w;c++) {
+        if (bi>=bytes.length) break;
+        var b=bytes[bi++];
+        for (var bp=0;bp<8;bp++) {
+          var pr=pg*8+bp;
+          if (pr<h) grid[pr][c] = msb ? (b>>bp)&1 : (b>>(7-bp))&1;
+        }
+      }
+    } else if (mode==='page-v-msb' || mode==='page-v-lsb') {
+      var pages=Math.ceil(w/8), bi=0;
+      for (var pg=0;pg<pages;pg++) for (var r=0;r<h;r++) {
+        if (bi>=bytes.length) break;
+        var b=bytes[bi++];
+        for (var bp=0;bp<8;bp++) {
+          var pc=pg*8+bp;
+          if (pc<w) grid[r][pc] = msb ? (b>>(7-bp))&1 : (b>>bp)&1;
+        }
+      }
+    }
+
+    var id = new ImageData(w, h);
+    var d = id.data;
+    for (var r=0;r<h;r++) for (var c=0;c<w;c++) {
+      var on = grid[r][c]===1;
+      if (invert) on=!on;
+      var i=(r*w+c)*4;
+      d[i]   = on?0:255;
+      d[i+1] = on?0:255;
+      d[i+2] = on?0:255;
+      d[i+3] = 255;
+    }
+    return {imageData:id, grid:grid};
+  }
+
+  /* Önizleme canvas'ını boyutlandır ve çiz */
+  function drawPreviewCanvas(canvas, imageData, w, h) {
+    var wrap = canvas.parentElement;
+    var maxW = wrap.clientWidth - 8 || 240;
+    var maxH = 132;
+    var scale = Math.min(maxW/w, maxH/h, 8);
+    scale = Math.max(scale, 1);
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.width  = Math.round(w*scale)+'px';
+    canvas.style.height = Math.round(h*scale)+'px';
+    var ctx = canvas.getContext('2d');
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  /* Boyutu byte sayısından tahmin et */
+  function guessDimensions(byteCount) {
+    var candidates = [
+      [128,64],[128,32],[64,48],[64,32],[32,32],[16,16],[24,24],[8,8],
+      [256,64],[128,128],[96,64],[84,48],[132,64],[160,128],[240,240]
+    ];
+    for (var i=0;i<candidates.length;i++) {
+      var w=candidates[i][0], h=candidates[i][1];
+      var expected = Math.ceil(w/8)*h; // h-msb
+      if (expected===byteCount) return {w:w,h:h,mode:'h-msb'};
+      expected = Math.ceil(h/8)*w; // v-msb
+      if (expected===byteCount) return {w:w,h:h,mode:'v-msb'};
+      expected = Math.ceil(h/8)*w; // page-h-msb (same formula for SSD1306)
+      var pageExp = Math.ceil(h/8)*w;
+      if (pageExp===byteCount) return {w:w,h:h,mode:'page-h-msb'};
+    }
+    // genel tarama
+    for (var w2=8;w2<=512;w2+=8) {
+      for (var h2=8;h2<=512;h2+=8) {
+        if (Math.ceil(w2/8)*h2===byteCount) return {w:w2,h:h2,mode:'h-msb'};
+        if (Math.ceil(h2/8)*w2===byteCount) return {w:w2,h:h2,mode:'page-h-msb'};
+      }
+    }
+    return null;
+  }
+
+  var lastBytes = null;
+  var selectedTryallMode = null;
+
+  function updateInfo(bytes) {
+    var el = $i('imp-info');
+    if (!bytes) { el.textContent='—'; el.className='imp-info'; return; }
+    var w=parseInt($i('imp-w').value)||0, h=parseInt($i('imp-h').value)||0;
+    var expectedH  = w&&h ? Math.ceil(w/8)*h : null;
+    var expectedPH = w&&h ? Math.ceil(h/8)*w : null;
+    var msg = bytes.length+' byte tespit edildi';
+    if (w&&h) {
+      msg += ' | '+w+'×'+h;
+      if (bytes.length===expectedH)  msg += ' ✓ (Yatay)';
+      else if (bytes.length===expectedPH) msg += ' ✓ (Sayfa)';
+      else msg += ' — Beklenen: '+expectedH+' (yatay) veya '+expectedPH+' (sayfa)';
+    }
+    el.textContent = msg;
+    el.className = 'imp-info ok';
+  }
+
+  function livePreview() {
+    var raw = $i('imp-code').value;
+    var bytes = extractBytes(raw);
+    lastBytes = bytes;
+    updateInfo(bytes);
+    if (!bytes) {
+      var ctx = $i('imp-preview-canvas').getContext('2d');
+      ctx.clearRect(0,0,1,1);
+      return;
+    }
+    var w = parseInt($i('imp-w').value)||128;
+    var h = parseInt($i('imp-h').value)||64;
+    var mode = $i('imp-read-mode').value;
+    var inv  = $i('imp-invert').checked;
+    try {
+      var res = bytesToImageData(bytes,w,h,mode,inv);
+      drawPreviewCanvas($i('imp-preview-canvas'), res.imageData, w, h);
+    } catch(e) {}
+  }
+
+  /* "Tüm Yönleri Dene" grid */
+  var ALL_MODES = [
+    {value:'h-msb',    label:'Yatay\nMSB'},
+    {value:'h-lsb',    label:'Yatay\nLSB'},
+    {value:'v-msb',    label:'Dikey\nMSB'},
+    {value:'v-lsb',    label:'Dikey\nLSB'},
+    {value:'page-h-msb', label:'Sayfa Y.\nMSB'},
+    {value:'page-h-lsb', label:'Sayfa Y.\nLSB'},
+    {value:'page-v-msb', label:'Sayfa D.\nMSB'},
+    {value:'page-v-lsb', label:'Sayfa D.\nLSB'},
+  ];
+
+  function tryAll() {
+    if (!lastBytes || !lastBytes.length) {
+      alert('Önce hex kodu yapıştırın.'); return;
+    }
+    var w = parseInt($i('imp-w').value)||128;
+    var h = parseInt($i('imp-h').value)||64;
+    var inv = $i('imp-invert').checked;
+    var wrap = $i('imp-tryall-wrap');
+    var grid = $i('imp-tryall-grid');
+    wrap.classList.remove('hidden');
+    grid.innerHTML = '';
+    selectedTryallMode = null;
+
+    ALL_MODES.forEach(function(m) {
+      var item = document.createElement('div');
+      item.className = 'tryall-item';
+      item.dataset.mode = m.value;
+
+      var canvasWrap = document.createElement('div');
+      canvasWrap.className = 'tryall-canvas-wrap';
+      var cvs = document.createElement('canvas');
+      canvasWrap.appendChild(cvs);
+
+      var lbl = document.createElement('div');
+      lbl.className = 'tryall-label';
+      lbl.textContent = m.label;
+
+      item.appendChild(canvasWrap);
+      item.appendChild(lbl);
+      grid.appendChild(item);
+
+      try {
+        var res = bytesToImageData(lastBytes, w, h, m.value, inv);
+        var maxW = 116, maxH = 70;
+        var scale = Math.min(maxW/w, maxH/h, 6);
+        scale = Math.max(scale, 1);
+        cvs.width=w; cvs.height=h;
+        cvs.style.width=Math.round(w*scale)+'px';
+        cvs.style.height=Math.round(h*scale)+'px';
+        cvs.getContext('2d').putImageData(res.imageData, 0, 0);
+      } catch(e) {
+        lbl.textContent = m.label+'\n(hata)';
+      }
+
+      item.addEventListener('click', function() {
+        // tümünü temizle
+        grid.querySelectorAll('.tryall-item').forEach(function(el){ el.classList.remove('selected'); });
+        item.classList.add('selected');
+        selectedTryallMode = m.value;
+        // ana seçiciyi güncelle
+        $i('imp-read-mode').value = m.value;
+        livePreview();
+      });
+    });
+  }
+
+  /* Tuvale Uygula */
+  function applyToCanvas() {
+    if (!lastBytes || !lastBytes.length) {
+      alert('Önce hex kodu yapıştırın.'); return;
+    }
+    var w = parseInt($i('imp-w').value)||128;
+    var h = parseInt($i('imp-h').value)||64;
+    var mode = $i('imp-read-mode').value;
+    var inv  = $i('imp-invert').checked;
+
+    // Mevcut uygulama state'ine eriş (IIFE dışındaki S, initCanvas vb.)
+    try {
+      var res = bytesToImageData(lastBytes, w, h, mode, inv);
+      // S ve diğer fonksiyonlar app.js IIFE'si içinde — window üzerinden değil
+      // Bu yüzden özel bir event ile haberleşiyoruz
+      document.dispatchEvent(new CustomEvent('bitmapImport', {
+        detail: { w:w, h:h, grid:res.grid }
+      }));
+    } catch(e) {
+      alert('Uygulama hatası: '+e.message);
+    }
+  }
+
+  /* Event listeners */
+  $i('imp-code').addEventListener('input', livePreview);
+  $i('imp-w').addEventListener('input', livePreview);
+  $i('imp-h').addEventListener('input', livePreview);
+  $i('imp-read-mode').addEventListener('change', livePreview);
+  $i('imp-invert').addEventListener('change', livePreview);
+
+  $i('imp-auto-size').addEventListener('click', function() {
+    var raw = $i('imp-code').value;
+    var bytes = extractBytes(raw);
+    if (!bytes) { alert('Önce hex kodu yapıştırın.'); return; }
+    var guess = guessDimensions(bytes.length);
+    if (guess) {
+      $i('imp-w').value = guess.w;
+      $i('imp-h').value = guess.h;
+      $i('imp-read-mode').value = guess.mode;
+      livePreview();
+    } else {
+      alert(bytes.length+' byte için standart boyut bulunamadı. W ve H\'yi elle girin.');
+    }
+  });
+
+  $i('imp-try-all').addEventListener('click', tryAll);
+  $i('imp-apply-btn').addEventListener('click', applyToCanvas);
+
 })();
